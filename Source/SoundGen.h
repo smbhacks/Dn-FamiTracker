@@ -1,19 +1,21 @@
 /*
 ** FamiTracker - NES/Famicom sound tracker
-** Copyright (C) 2005-2014  Jonathan Liss
+** Copyright (C) 2005-2015 Jonathan Liss
 **
-** 0CC-FamiTracker is (C) 2014-2015 HertzDevil
+** 0CC-FamiTracker is (C) 2014-2018 HertzDevil
+**
+** Dn-FamiTracker is (C) 2020-2021 D.P.C.M.
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation; either version 2 of the License, or
 ** (at your option) any later version.
 **
-** This program is distributed in the hope that it will be useful, 
+** This program is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
-** Library General Public License for more details.  To obtain a 
-** copy of the GNU Library General Public License, write to the Free 
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+** Library General Public License for more details. To obtain a
+** copy of the GNU Library General Public License, write to the Free
 ** Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 ** Any permitted reproduction of these routines, in whole or in part,
@@ -30,7 +32,9 @@
 #include <queue>		// // //
 #include "Common.h"
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 
 const int VIBRATO_LENGTH = 256;
 const int TREMOLO_LENGTH = 256;
@@ -306,7 +310,7 @@ private:
 
 	// Thread synchronization
 private:
-	mutable CCriticalSection m_csAPULock;		// // //
+	mutable std::mutex m_csAPULock;		// // //
 	mutable CCriticalSection m_csVisualizerWndLock;
 
 	// Handles
@@ -335,7 +339,7 @@ private:
 	int					m_iTempoAccum;						// Used for speed calculation
 	unsigned int		m_iPlayTicks;
 	bool				m_bPlaying;							// True when tracker is playing back the module
-	bool				m_bHaltRequest;						// True when a halt is requested
+	std::atomic<bool>	m_bHaltRequest;						// True when a halt is requested
 	bool				m_bPlayLooping;
 	int					m_iFrameCounter;
 
@@ -435,9 +439,11 @@ public:
 	afx_msg void OnRemoveDocument(WPARAM wParam, LPARAM lParam);
 
 public:
-	CSingleLock Lock() {
-		auto out = CSingleLock(&m_csAPULock, TRUE);
-		ASSERT(out.IsLocked());
-		return out;
+	std::unique_lock<std::mutex> Lock() {
+		return std::unique_lock<std::mutex>(m_csAPULock);
+	}
+
+	std::unique_lock<std::mutex> DeferLock() {
+		return std::unique_lock<std::mutex>(m_csAPULock, std::defer_lock);
 	}
 };

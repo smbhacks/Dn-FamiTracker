@@ -1,19 +1,21 @@
 /*
 ** FamiTracker - NES/Famicom sound tracker
-** Copyright (C) 2005-2014  Jonathan Liss
+** Copyright (C) 2005-2015 Jonathan Liss
 **
-** 0CC-FamiTracker is (C) 2014-2015 HertzDevil
+** 0CC-FamiTracker is (C) 2014-2018 HertzDevil
+**
+** Dn-FamiTracker is (C) 2020-2021 D.P.C.M.
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation; either version 2 of the License, or
 ** (at your option) any later version.
 **
-** This program is distributed in the hope that it will be useful, 
+** This program is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
-** Library General Public License for more details.  To obtain a 
-** copy of the GNU Library General Public License, write to the Free 
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+** Library General Public License for more details. To obtain a
+** copy of the GNU Library General Public License, write to the Free
 ** Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 ** Any permitted reproduction of these routines, in whole or in part,
@@ -702,6 +704,8 @@ bool CSoundGen::ResetAudioDevice()
 	unsigned int SampleRate = pSettings->Sound.iSampleRate;
 	unsigned int BufferLen	= pSettings->Sound.iBufferLength;
 	unsigned int Device		= pSettings->Sound.iDevice;
+
+	auto l = Lock();
 
 	m_iSampleSize = SampleSize;
 	m_iAudioUnderruns = 0;
@@ -1658,7 +1662,7 @@ void CSoundGen::LoadMachineSettings()		// // //
 	m_iUpdateCycles = BaseFreq / Rate;
 
 	{
-		CSingleLock l(&m_csAPULock, TRUE);		// // //
+		auto l = Lock();
 		m_pAPU->ChangeMachineRate(m_iMachineType == NTSC ? MACHINE_NTSC : MACHINE_PAL, Rate);		// // //
 		m_pAPU->Reset();
 	}
@@ -1799,7 +1803,7 @@ bool CSoundGen::RenderToFile(LPTSTR pFile, render_end_t SongEndType, int SongEnd
 		WaitForStop();
 	}
 
-	CSingleLock l = Lock();
+	auto l = Lock();
 
 	m_iRenderEndWhen = SongEndType;
 	m_iRenderEndParam = SongEndParam;
@@ -1839,7 +1843,7 @@ void CSoundGen::StopRendering()
 	ASSERT(GetCurrentThreadId() == m_nThreadID);
 	ASSERT(m_bRendering);
 
-	CSingleLock l = Lock();
+	auto l = Lock();
 
 	if (!IsRendering())
 		return;
@@ -2036,6 +2040,7 @@ BOOL CSoundGen::OnIdle(LONG lCount)
 
 	if (m_bHaltRequest) {
 		// Halt has been requested, abort playback here
+		auto l = Lock();
 		HaltPlayer();
 	}
 
@@ -2134,8 +2139,8 @@ void CSoundGen::UpdateAPU()
 	m_bWaveChanged = false;
 	
 	{
-		CSingleLock l(&m_csAPULock);		// // //
-		if (l.Lock()) {
+		auto l = DeferLock();
+		if (l.try_lock()) {
 			// Update APU channel registers
 			unsigned int PrevChip = SNDCHIP_NONE;		// // // 050B
 			for (int i = 0; i < CHANNELS; ++i) {
@@ -2166,7 +2171,7 @@ void CSoundGen::UpdateAPU()
 			m_pAPU->AddCycles(m_iUpdateCycles - m_iConsumedCycles);
 			m_pAPU->Process();
 
-			l.Unlock();
+			l.unlock();
 		}
 	}
 
@@ -2203,6 +2208,7 @@ void CSoundGen::OnLoadSettings(WPARAM wParam, LPARAM lParam)
 
 void CSoundGen::OnStopPlayer(WPARAM wParam, LPARAM lParam)
 {
+	auto l = Lock();
 	HaltPlayer();
 }
 
@@ -2218,7 +2224,7 @@ void CSoundGen::OnResetPlayer(WPARAM wParam, LPARAM lParam)
 
 void CSoundGen::OnStartRender(WPARAM wParam, LPARAM lParam)
 {
-	CSingleLock l = Lock();
+	auto l = Lock();
 	ResetBuffer();
 	m_bRequestRenderStart = false;
 	m_bRequestRenderStop = false;
@@ -2256,6 +2262,8 @@ void CSoundGen::OnCloseSound(WPARAM wParam, LPARAM lParam)
 void CSoundGen::OnSetChip(WPARAM wParam, LPARAM lParam)
 {
 	int Chip = wParam;
+
+	auto l = Lock();
 
 	{
 		auto config = CAPUConfig(m_pAPU);
