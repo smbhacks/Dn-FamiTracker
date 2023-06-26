@@ -126,7 +126,6 @@ void CChannelHandlerVRC7::UpdateNoteRelease()		// // //
 
 void CChannelHandlerVRC7::HandleRelease()
 {
-	ReleaseNote();
 	if (!m_bRelease) {
 		m_iCommand = CMD_NOTE_RELEASE;
 		RegisterKeyState(-1);
