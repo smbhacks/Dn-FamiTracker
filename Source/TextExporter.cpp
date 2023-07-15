@@ -1401,7 +1401,7 @@ const CString& CTextExport::ExportFile(LPCTSTR FileName, CFamiTrackerDoc *pDoc)
 		f.WriteString(s);
 
 		auto seqInst = std::dynamic_pointer_cast<CSeqInstrument>(pInst);
-		if (seqInst && pInst->GetType() != INST_FDS) {
+		if (seqInst && pInst->GetType() != INST_FDS && pInst->GetType() != INST_VRC7) {
 			s.Empty();
 			for (int j = 0; j < SEQ_COUNT; j++)
 				s.AppendFormat(_T("%3d "), seqInst->GetSeqEnable(j) ? seqInst->GetSeqIndex(j) : -1);
